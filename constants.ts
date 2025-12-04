@@ -37,8 +37,7 @@ export const CHARACTERS: Omit<Character, 'isAI'>[] = [
 
 // --- MAP GENERATION HELPERS ---
 
-// A much larger map requires procedural generation helper
-// We will create a large loop roughly 3000x2000 size
+// Procedural generation for a winding, space-filling Shanghai map
 const generateShanghaiMap = (): TileData[] => {
   const tiles: TileData[] = [];
   let idCounter = 0;
@@ -73,105 +72,137 @@ const generateShanghaiMap = (): TileData[] => {
     }
   };
 
-  // --- MAP PATH DEFINITION ---
   // Coordinates are pixels on a 3000x2400 canvas
-  // We define a large rectangle loop with some squiggles
+  // We will create a Winding Loop that fills the center space better
 
-  // 1. START (Bottom Right - Pudong Airport Area)
-  addTile("起点", TileType.START, 2600, 2000, "浦东"); // 0
-
-  // 2. Going Up (Pudong) - 10 tiles
-  const pdNames = ["张江高科", "迪士尼", "川沙", "金桥", "世纪公园", "上海科技馆", "东方艺术中心", "源深体育", "民生路", "陆家嘴中心"];
-  for (let i = 0; i < pdNames.length; i++) {
-    const y = 2000 - ((i + 1) * 160); 
-    const type = (i === 3 || i === 7) ? TileType.CHANCE : TileType.PROPERTY;
-    addTile(pdNames[i], type, 2600, y, "浦东", 15000000 + (i * 1000000));
+  // SECTION 1: START -> PUDONG SOUTH -> CENTURY PARK -> LUJIAZUI
+  // Fills Bottom-Right and Center-Right
+  addTile("起点", TileType.START, 2600, 2100, "浦东"); // 0
+  
+  // Go Up-Left into the map center (Century Park area)
+  const sec1 = ["康桥", "御桥", "三林", "东方体育", "前滩太古里", "世博公园", "中华艺术宫", "梅赛德斯", "龙阳路", "磁悬浮", "世纪公园", "上海科技馆", "源深体育", "民生路", "陆家嘴中心"];
+  // Coordinates curve: (2600,2100) -> (2200, 1800) -> (1800, 1600) -> (2000, 1200) -> (2400, 800) -> (2600, 400)
+  for (let i = 0; i < sec1.length; i++) {
+      // Logic to curve the line "S" shape roughly
+      let x, y;
+      if (i < 5) { // Bottom area moving left
+          x = 2600 - ((i+1) * 120); 
+          y = 2100 - ((i+1) * 20);
+      } else if (i < 10) { // Moving Up-Right
+          x = 2000 + ((i-5) * 80);
+          y = 2000 - ((i-5) * 160);
+      } else { // Moving Up to Lujiazui
+          x = 2400 + ((i-10) * 40);
+          y = 1200 - ((i-10) * 160);
+      }
+      
+      let type = TileType.PROPERTY;
+      if (i === 3 || i === 11) type = TileType.CHANCE;
+      if (i === 7) type = TileType.SHOP;
+      
+      addTile(sec1[i], type, x, y, "浦东", 15000000 + (i*1000000));
   }
   
-  // CORNER: Lujiazui (Top Right)
-  addTile("东方明珠", TileType.PROPERTY, 2600, 200, "浦东", 60000000); // ~11
-  
-  // 3. Going Left (Along the River/North) - 15 tiles
-  // X moves from 2600 -> 200
-  const northNames = ["外滩隧道", "外白渡桥", "南京东路", "和平饭店", "外滩18号", "福州路", "人民广场", "大剧院", "南京西路", "静安寺", "久光百货", "曹家渡", "长寿路", "中山公园", "虹桥枢纽"];
-  for (let i = 0; i < northNames.length; i++) {
-    const x = 2400 - ((i + 1) * 150);
-    let type = TileType.PROPERTY;
-    let price = 40000000;
-    if (i === 4) type = TileType.BANK;
-    if (i === 8) type = TileType.SHOP;
-    if (i === 12) type = TileType.CHANCE;
-    if (northNames[i] === "南京东路" || northNames[i] === "静安寺") price = 50000000;
-    
-    addTile(northNames[i], type, x, 200, i < 6 ? "黄浦" : (i < 12 ? "静安" : "长宁"), price);
+  // CORNER: Lujiazui Tip
+  addTile("东方明珠", TileType.PROPERTY, 2600, 300, "浦东", 80000000); 
+
+  // SECTION 2: LUJIAZUI -> NORTH BUND -> PEOPLE'S SQUARE -> JINGAN
+  // Fills Top Edge and Top Center
+  // (2600, 300) -> Leftwards
+  const sec2 = ["陆家嘴滨江", "外滩隧道", "外白渡桥", "北外滩", "南京东路", "和平饭店", "外滩18号", "福州路", "人民广场", "大剧院", "南京西路", "静安寺", "久光百货", "曹家渡", "长寿路", "中山公园"];
+  for(let i=0; i<sec2.length; i++) {
+      let x = 2450 - (i * 140);
+      let y = 300;
+      // Dip down for People's Square / Nanjing Rd to fill center top
+      if (i >= 4 && i <= 10) {
+          y = 300 + Math.sin((i-4) * 0.5) * 200; // Curve down
+      }
+      
+      let type = TileType.PROPERTY;
+      let price = 45000000;
+      if (sec2[i] === "南京东路" || sec2[i] === "静安寺") price = 60000000;
+      if (i === 6) type = TileType.BANK;
+      if (i === 12) type = TileType.CHANCE;
+
+      addTile(sec2[i], type, x, y, i < 4 ? "浦东" : (i < 9 ? "黄浦" : (i < 13 ? "静安" : "长宁")), price);
   }
 
-  // CORNER: Hongqiao (Top Left)
-  addTile("虹桥机场", TileType.PARK, 100, 200, "长宁"); // ~27
+  // CORNER: Hongqiao
+  addTile("虹桥枢纽", TileType.PARK, 150, 400, "长宁");
 
-  // 4. Going Down (West Side) - 12 tiles
-  // Y moves from 200 -> 2000
-  const westNames = ["动物园", "古北", "龙之梦", "交通大学", "徐家汇", "港汇恒隆", "上海体育馆", "漕河泾", "锦江乐园", "南方商城", "莘庄", "闵行开发区"];
-  for (let i = 0; i < westNames.length; i++) {
-    const y = 400 + (i * 140);
-    let type = TileType.PROPERTY;
-    if (i === 2) type = TileType.JAIL;
-    if (i === 7) type = TileType.TAX;
-    if (i === 10) type = TileType.CHANCE;
-    addTile(westNames[i], type, 100, y, i < 7 ? "徐家汇" : "郊区", 20000000 + (i < 7 ? 10000000 : -5000000));
+  // SECTION 3: HONGQIAO -> GUBEI -> XUJIAHUI -> MINHANG
+  // Fills Left Edge and Center Left
+  // (150, 400) -> Downwards
+  const sec3 = ["动物园", "古北", "龙之梦", "交通大学", "徐家汇", "港汇恒隆", "上海体育馆", "漕河泾", "锦江乐园", "南方商城", "莘庄", "闵行开发区"];
+  for(let i=0; i<sec3.length; i++) {
+      let x = 150;
+      let y = 550 + (i * 130);
+      
+      // Indent Xujiahui to center
+      if (i >= 3 && i <= 7) {
+          x = 150 + Math.sin((i-3) * 0.8) * 400; // Curve right into map
+      }
+
+      let type = TileType.PROPERTY;
+      if (i === 2) type = TileType.JAIL;
+      if (i === 8) type = TileType.TAX;
+
+      addTile(sec3[i], type, x, y, i < 6 ? "徐家汇" : "郊区", 30000000);
   }
 
-  // CORNER: Minhang (Bottom Left)
-  addTile("老街", TileType.SHOP, 100, 2100, "郊区"); // ~40
+  // CORNER: Old Street
+  addTile("七宝老街", TileType.SHOP, 200, 2100, "郊区");
 
-  // 5. Going Right (South Side) - 15 tiles
-  // X moves from 100 -> 2600
-  const southNames = ["七宝", "华东理工", "上海南站", "植物园", "滨江大道", "西岸艺术", "龙华寺", "世博园", "中华艺术宫", "梅赛德斯", "后滩", "前滩太古里", "三林", "御桥", "康桥"];
-  for (let i = 0; i < southNames.length; i++) {
-    const x = 300 + (i * 150);
-    let type = TileType.PROPERTY;
-    if (i === 5) type = TileType.CHANCE;
-    if (i === 11) type = TileType.SHOP;
-    addTile(southNames[i], type, x, 2100, i < 8 ? "徐汇" : "浦东", 25000000);
+  // SECTION 4: SOUTH -> XUHUI RIVERSIDE -> START
+  // Fills Bottom Edge and Bottom Center
+  // (200, 2100) -> Rightwards
+  const sec4 = ["华东理工", "上海南站", "植物园", "龙华寺", "滨江大道", "西岸艺术", "后滩", "耀华路"];
+  for(let i=0; i<sec4.length; i++) {
+      // Zigzag up to fill the gap below the center
+      let x = 400 + (i * 240);
+      let y = 2100;
+      
+      // West Bund area curves up
+      if (i >= 4 && i <= 6) {
+          y = 2100 - 300; 
+      }
+      
+      let type = TileType.PROPERTY;
+      if (i === 3) type = TileType.CHANCE;
+      
+      addTile(sec4[i], type, x, y, "徐汇", 28000000);
   }
 
-  // CONNECT LOOP BACK TO START
-  // The last tile generated above needs to point to Tile 0
+  // Link last tile to Start
   tiles[tiles.length - 1].next = [0];
 
-  // --- SHORTCUT PATH (Inner Ring) ---
-  // Connects "Renmin Square" (Index ~17) to "Xujiahui" (Index ~32) via Middle
-  // Let's find IDs dynamically
-  const tRenmin = tiles.find(t => t.name === "人民广场");
-  const tXujiahui = tiles.find(t => t.name === "徐家汇");
-  
-  if (tRenmin && tXujiahui) {
-    const startId = tRenmin.id;
-    const endId = tXujiahui.id;
-    
-    // Create shortcut nodes
-    const shortcutNames = ["新天地", "淮海中路", "复兴公园", "田子坊", "打浦桥", "瑞金医院"];
-    let prevId = startId;
-    
-    // Branch logic: Renmin Square points to next Main OR first Shortcut
-    // We'll update its next array later, first add shortcut tiles
-    
-    const shortcutStartId = idCounter;
-    
-    for (let i = 0; i < shortcutNames.length; i++) {
-        const x = 1400 - (i * 100); // Diagonal-ish
-        const y = 600 + (i * 150);
-        
-        // Special super expensive property
-        let type = TileType.PROPERTY;
-        let price = 55000000;
-        if (shortcutNames[i] === "新天地") price = 80000000;
-        if (i === 2) type = TileType.CHANCE;
-        if (i === 5) type = TileType.SHOP;
 
-        tiles.push({
+  // --- SHORTCUT: CENTRAL ARTERY ---
+  // Connects "People's Square" (Top Center) to "West Bund" (Bottom Center)
+  // This cuts right through the middle
+  const tStart = tiles.find(t => t.name === "人民广场");
+  const tEnd = tiles.find(t => t.name === "西岸艺术");
+
+  if (tStart && tEnd) {
+      const startId = tStart.id;
+      const endId = tEnd.id;
+      
+      const scNames = ["新天地", "淮海中路", "复兴公园", "田子坊", "打浦桥", "瑞金医院"];
+      // Path from (1200, 500) down to (1600, 1800) roughly
+      
+      const scStartId = idCounter;
+      for (let i = 0; i < scNames.length; i++) {
+          const x = 1200 + (i * 80);
+          const y = 600 + (i * 180);
+          
+          let type = TileType.PROPERTY;
+          let price = 60000000;
+          if (scNames[i] === "新天地") price = 99000000; // Prime location
+          if (i === 2) type = TileType.CHANCE;
+
+          tiles.push({
             id: idCounter,
-            name: shortcutNames[i],
+            name: scNames[i],
             type,
             x,
             y,
@@ -181,16 +212,15 @@ const generateShanghaiMap = (): TileData[] => {
             price,
             rent: price * 0.15,
             color: 'border-yellow-400 shadow-yellow-500/80'
-        });
-        
-        if (i === shortcutNames.length - 1) {
-            tiles[tiles.length - 1].next = [endId];
-        }
-        idCounter++;
-    }
-
-    // Add branch to Renmin Square
-    tRenmin.next.push(shortcutStartId);
+          });
+          
+          if (i === scNames.length - 1) {
+             tiles[tiles.length - 1].next = [endId];
+          }
+          idCounter++;
+      }
+      // Add branch
+      tStart.next.push(scStartId);
   }
 
   return tiles;

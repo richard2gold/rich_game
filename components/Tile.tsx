@@ -17,19 +17,35 @@ const formatMoneyTiny = (amount: number) => {
 
 export const Tile: React.FC<TileProps> = ({ data, playersOnTile, onClick, isCurrent, style }) => {
   let bgClass = 'bg-slate-800';
-  let borderClass = data.color || 'border-slate-600';
   let icon = '';
+  
+  // District-based Theming Logic
+  const getThemeStyles = () => {
+      switch(data.district) {
+          case '浦东': return 'bg-gradient-to-br from-blue-900 to-slate-900 border-blue-400/50 shadow-blue-900/40';
+          case '黄浦': return 'bg-gradient-to-br from-red-900 to-slate-900 border-red-400/50 shadow-red-900/40';
+          case '静安': return 'bg-gradient-to-br from-orange-900 to-slate-900 border-orange-400/50 shadow-orange-900/40';
+          case '徐汇': return 'bg-gradient-to-br from-purple-900 to-slate-900 border-purple-400/50 shadow-purple-900/40';
+          case '郊区': return 'bg-gradient-to-br from-gray-800 to-slate-900 border-gray-500/50 shadow-gray-900/40';
+          default: return 'bg-slate-800 border-slate-600';
+      }
+  };
+
+  let themeClass = getThemeStyles();
+  let specialClass = '';
 
   switch (data.type) {
-    case TileType.START: bgClass = 'bg-green-900'; icon = '🏁'; break;
-    case TileType.CHANCE: bgClass = 'bg-indigo-900'; icon = '❓'; break;
-    case TileType.JAIL: bgClass = 'bg-gray-800'; icon = '👮'; break;
-    case TileType.BANK: bgClass = 'bg-yellow-900'; icon = '🏦'; break;
-    case TileType.TAX: bgClass = 'bg-red-950'; icon = '📉'; break;
-    case TileType.SHOP: bgClass = 'bg-purple-900'; icon = '🛒'; break;
-    case TileType.PARK: bgClass = 'bg-emerald-800'; icon = '🌳'; break;
-    case TileType.PROPERTY: bgClass = 'bg-slate-800'; break;
+    case TileType.START: specialClass = 'bg-gradient-to-br from-green-600 to-green-900 border-green-400 ring-4 ring-green-900/30'; icon = '🏁'; break;
+    case TileType.CHANCE: specialClass = 'bg-gradient-to-br from-indigo-600 to-indigo-900 border-indigo-400'; icon = '❓'; break;
+    case TileType.JAIL: specialClass = 'bg-gray-800 border-gray-500 border-dashed'; icon = '👮'; break;
+    case TileType.BANK: specialClass = 'bg-yellow-900 border-yellow-500'; icon = '🏦'; break;
+    case TileType.TAX: specialClass = 'bg-red-950 border-red-600'; icon = '📉'; break;
+    case TileType.SHOP: specialClass = 'bg-purple-900 border-purple-500'; icon = '🛒'; break;
+    case TileType.PARK: specialClass = 'bg-emerald-800 border-emerald-500'; icon = '🌳'; break;
   }
+
+  // Use special class if not property, otherwise use theme
+  const finalClass = data.type === TileType.PROPERTY ? themeClass : specialClass;
 
   // Building Levels (3D Stack)
   const renderLevels = () => {
@@ -52,24 +68,31 @@ export const Tile: React.FC<TileProps> = ({ data, playersOnTile, onClick, isCurr
       className={`
         absolute w-24 h-24 -ml-12 -mt-12
         flex flex-col items-center justify-center
-        border-[3px] rounded-lg cursor-pointer transition-all duration-300
-        ${bgClass} ${borderClass}
-        shadow-[0_4px_10px_rgba(0,0,0,0.5)]
-        ${isCurrent ? 'z-30 brightness-110' : 'z-10 hover:z-20 hover:scale-105'}
+        border-[3px] rounded-xl cursor-pointer transition-all duration-300
+        ${finalClass}
+        shadow-[0_10px_20px_rgba(0,0,0,0.6)]
+        ${isCurrent ? 'z-30 brightness-110 scale-110' : 'z-10 hover:z-20 hover:scale-105'}
         ${data.ownerId !== undefined && data.ownerId !== null ? '' : 'opacity-95'}
       `}
     >
       {/* Current Turn Glow */}
-      {isCurrent && <div className="absolute inset-0 rounded-lg ring-2 ring-yellow-400 animate-pulse pointer-events-none"></div>}
+      {isCurrent && <div className="absolute inset-0 rounded-xl ring-4 ring-yellow-400/50 animate-pulse pointer-events-none"></div>}
 
       {/* Ownership Overlay */}
       {data.ownerId !== undefined && data.ownerId !== null && (
-         <div className="absolute inset-0 bg-gradient-to-br from-transparent to-red-500/30 rounded-lg pointer-events-none border-2 border-red-500/50"></div>
+         <div className="absolute inset-0 bg-gradient-to-br from-transparent to-red-500/40 rounded-xl pointer-events-none border-2 border-red-500/60"></div>
       )}
 
       {/* Human Presence Arrow */}
       {humanIsHere && (
-          <div className="absolute -top-10 animate-bounce text-2xl z-40 drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">📍</div>
+          <div className="absolute -top-12 animate-bounce text-3xl z-40 drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] filter hue-rotate-15">📍</div>
+      )}
+
+      {/* District Label (Top) */}
+      {data.type === TileType.PROPERTY && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-black/80 text-[8px] text-white/70 px-1.5 rounded-full whitespace-nowrap border border-white/10 z-20">
+            {data.district}
+        </div>
       )}
 
       {/* Name */}
@@ -79,22 +102,21 @@ export const Tile: React.FC<TileProps> = ({ data, playersOnTile, onClick, isCurr
       
       {/* Price/Rent */}
       {data.type === TileType.PROPERTY && data.price && (
-         <div className="text-[9px] text-yellow-300 font-mono mt-1 z-10 bg-black/60 px-1.5 py-0.5 rounded backdrop-blur-sm">
+         <div className="text-[9px] text-yellow-200 font-mono mt-1 z-10 bg-black/60 px-1.5 py-0.5 rounded backdrop-blur-sm border border-white/5">
              ¥{formatMoneyTiny(data.rent && data.level > 0 ? (data.rent * Math.pow(2.2, data.level-1)) : data.price)}
          </div>
       )}
       
       {/* Icons */}
       {data.type !== TileType.PROPERTY && (
-          <div className="text-2xl mt-1 drop-shadow-lg">{icon}</div>
+          <div className="text-2xl mt-1 drop-shadow-lg transform hover:scale-110 transition-transform">{icon}</div>
       )}
 
       {renderLevels()}
 
       {/* 3D DOLL FIGURES */}
-      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-end justify-center -space-x-2 z-40 h-0">
+      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-end justify-center -space-x-2 z-40 h-0 pointer-events-none">
         {playersOnTile.map((p, idx) => {
-            const isMoving = false; // Could pass this in if needed
             return (
               <div 
                 key={p.id}
